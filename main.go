@@ -11,29 +11,18 @@ func main() {
 		os.Exit(1)
 	}
 	UserInput = os.Args[1]
-	// Tokenize argument
+	// Tokenize and parse expression
 	token := tokenize(UserInput)
-
+	node := token.expr()
 	// Print Asembly header
 	fmt.Printf(".intel_syntax noprefix\n")
 	fmt.Printf(".globl main\n")
 	fmt.Printf("main:\n")
 
-	// Check first argument of expr as number and
-	// print the number as mov
-	fmt.Printf("  mov rax, %d\n", token.expectNumber())
-	for {
-		if token.atEof() {
-			break
-		}
-		if token.consume("+") {
-			fmt.Printf("  add rax, %d\n", token.expectNumber())
-			continue
-		}
-		if token.consume("-") {
-			fmt.Printf("  sub rax, %d\n", token.expectNumber())
-			continue
-		}
-	}
+	// traverse AST and generate Assembly code
+	node.gen()
+
+	// Load rest of stuck and return
+	fmt.Printf("  pop rax\n")
 	fmt.Printf("  ret\n")
 }

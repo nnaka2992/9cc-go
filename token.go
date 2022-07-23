@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"strings"
 	"unicode"
 )
 
@@ -76,13 +77,11 @@ func tokenize(s string) *Token {
 		if unicode.IsSpace(rs[i]) {
 			i++
 			continue
-		}
-		if rs[i] == '+' || rs[i] == '-' {
+		} else if strings.ContainsRune("+-*/()", rs[i]) {
 			cur = cur.newToken(TKReserved, []rune{rs[i]}, i)
 			i++
 			continue
-		}
-		if IsDigit(rs[i]) {
+		} else if IsDigit(rs[i]) {
 			v, offset := RuneToInt(rs[i:])
 			cur = cur.newToken(TKNum, rs[i:i+offset], i+offset)
 			cur.val = v
@@ -103,4 +102,39 @@ func (t Token) PrintTokens() {
 		cur.nextToken()
 		pos++
 	}
+}
+
+func (t *Token) expr() *Node {
+	node := t.mul()
+	for {
+		if t.consume("+") {
+			node = newNode(NdAdd, node, t.mul())
+		} else if t.consume("-") {
+			node = newNode(NdSub, node, t.mul())
+		} else {
+			return node
+		}
+	}
+}
+
+func (t *Token) mul() *Node {
+	node := t.primary()
+	for {
+		if t.consume("*") {
+			node = newNode(NdMul, node, t.primary())
+		} else if t.consume("/") {
+			node = newNode(NdDiv, node, t.primary())
+		} else {
+			return node
+		}
+	}
+}
+
+func (t *Token) primary() *Node {
+	if t.consume("(") {
+		node := t.expr()
+		t.expect(")")
+		return node
+	}
+	return newNodeNum(t.expectNumber())
 }
