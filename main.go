@@ -10,9 +10,9 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Invalid number of arguments.\n")
 		os.Exit(1)
 	}
-	expr := os.Args[1]
+	UserInput = os.Args[1]
 	// Tokenize argument
-	token := tokenize(expr)
+	token := tokenize(UserInput)
 
 	// Print Asembly header
 	fmt.Printf(".intel_syntax noprefix\n")

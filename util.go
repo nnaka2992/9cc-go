@@ -1,8 +1,6 @@
 package main
 
 import (
-	"fmt"
-	"os"
 	"strconv"
 	"strings"
 )
@@ -33,12 +31,6 @@ func RuneToInt(rs []rune) (v int, offset int) {
 	}
 	v, _ = strconv.Atoi(string(rs[:offset]))
 	return v, offset
-}
-
-func Errorf(format string, a ...interface{}) {
-	format += string('\n')
-	fmt.Fprintf(os.Stderr, format, a)
-	os.Exit(1)
 }
 
 func IsDigit(r rune) bool {
