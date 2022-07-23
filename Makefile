@@ -1,6 +1,6 @@
 CFLAG=-std=c11 -g -static
 9cc:
-	go build -o 9cc main.go
+	go build -o 9cc *.go
 
 .PHONY: deps test clean cc run
 deps:

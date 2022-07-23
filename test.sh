@@ -3,7 +3,7 @@ assert() {
     expected="$1"
     input="$2"
 
-    go run main.go "$input" > tmp.s
+    go run *.go "$input" > tmp.s
     cc -o tmp tmp.s
     ./tmp
     actual="$?"
@@ -19,5 +19,5 @@ assert() {
 assert 0 0
 assert 42 42
 assert 21 "5+20-4"
-
+assert 41 " 12 + 34- 5"
 echo OK
