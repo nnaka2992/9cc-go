@@ -13,7 +13,9 @@ func main() {
 	UserInput = os.Args[1]
 	// Tokenize and parse expression
 	token := tokenize(UserInput)
+	//token.Print()
 	node := token.expr()
+	//node.Print()
 	// Print Asembly header
 	fmt.Printf(".intel_syntax noprefix\n")
 	fmt.Printf(".globl main\n")

@@ -16,12 +16,34 @@ const (
 	TKEof
 )
 
+func (e TokenKind) String() string {
+	switch e {
+	case 0:
+		return "TKReserved"
+	case 1:
+		return "TKNum"
+	case 2:
+		return "TKEof"
+	default:
+		return "Not a valid type"
+	}
+}
+
 type Token struct {
-	kind   TokenKind
-	next   *Token
-	val    int
-	offset int
-	rune   []rune
+	kind   TokenKind // Type of token
+	next   *Token    // Next token
+	val    int       // interger: set only if kind is TkNum
+	start  int       // starting location on user input
+	offset int       // length of token
+	rune   []rune    // token string
+}
+
+func (t *Token) String() string {
+	return fmt.Sprintf(
+		"kind=%s\tnext=%p\tval=%d\tstart=%d\toffset=%d\trune=%#U",
+		t.kind, t.next, t.val, t.start, t.offset, t.rune,
+	)
+
 }
 
 func (t *Token) nextToken() {
@@ -29,7 +51,7 @@ func (t *Token) nextToken() {
 }
 
 func (t *Token) consume(op string) bool {
-	if t.kind != TKReserved || string(t.rune) != op {
+	if t.kind != TKReserved || t.offset != len([]rune(op)) || string(t.rune) != op {
 		return false
 	}
 	t.nextToken()
@@ -37,15 +59,15 @@ func (t *Token) consume(op string) bool {
 }
 
 func (t *Token) expect(op string) {
-	if t.kind != TKReserved || string(t.rune) != op {
-		ErrorAt(t.offset, "Rune is not %#U", op)
+	if t.kind != TKReserved || t.offset != len([]rune(op)) || string(t.rune) != op {
+		ErrorAt(t.start, "Rune is not %#U", op)
 	}
 	t.nextToken()
 }
 
 func (t *Token) expectNumber() int {
 	if t.kind != TKNum {
-		ErrorAt(t.offset, "Not a number.")
+		ErrorAt(t.start, "Not a number.")
 	}
 	val := t.val
 	t.nextToken()
@@ -60,7 +82,8 @@ func (t *Token) newToken(kind TokenKind, r []rune, i int) *Token {
 	tok := &Token{
 		kind:   kind,
 		rune:   r,
-		offset: i,
+		start:  i,
+		offset: len(r),
 	}
 	t.next = tok
 	return tok
@@ -72,45 +95,94 @@ func tokenize(s string) *Token {
 	var cur *Token
 	cur = &head
 
+	pos := 0
 	rs := []rune(s)
-	for i := 0; i < len(rs); {
-		if unicode.IsSpace(rs[i]) {
-			i++
+	//for i := 0; i < len(rs); {
+	for 0 < len(rs) {
+		if unicode.IsSpace(rs[0]) {
+			pos++
+			rs = rs[1:]
 			continue
-		} else if strings.ContainsRune("+-*/()", rs[i]) {
-			cur = cur.newToken(TKReserved, []rune{rs[i]}, i)
-			i++
+		} else if 2 <= len(rs) && ("==" == string(rs[:2]) || "!=" == string(rs[:2])) {
+			cur = cur.newToken(TKReserved, rs[:2], pos)
+			rs = rs[2:]
+			pos += 2
 			continue
-		} else if IsDigit(rs[i]) {
-			v, offset := RuneToInt(rs[i:])
-			cur = cur.newToken(TKNum, rs[i:i+offset], i+offset)
+		} else if 2 <= len(rs) && ("<=" == string(rs[:2]) || ">=" == string(rs[:2])) {
+			cur = cur.newToken(TKReserved, rs[:2], pos)
+			rs = rs[2:]
+			pos += 2
+			continue
+		} else if strings.ContainsRune("+-*/()<>", rs[0]) {
+			cur = cur.newToken(TKReserved, []rune{rs[0]}, pos)
+			rs = rs[1:]
+			pos++
+			continue
+		} else if IsDigit(rs[0]) {
+			v, offset := RuneToInt(rs)
+			cur = cur.newToken(TKNum, rs[:offset], pos)
+			rs = rs[offset:]
 			cur.val = v
-			i += offset
+			pos += offset
 			continue
 		}
-		ErrorAt(i, "Failed to tokenize")
+		ErrorAt(pos, "Failed to tokenize")
 	}
 	cur.newToken(TKEof, nil, -1)
 	return head.next
 }
 
-func (t Token) PrintTokens() {
+func (t Token) Print() {
+	fmt.Println("==Print Token===================================================================")
 	var cur *Token = &t
-	pos := 1
 	for !cur.atEof() {
-		fmt.Printf("%d: %#U\n", pos, cur.rune)
+		fmt.Println(cur.String())
 		cur.nextToken()
-		pos++
 	}
 }
 
 func (t *Token) expr() *Node {
+	return t.equality()
+}
+
+func (t *Token) equality() *Node {
+	node := t.relational()
+	for {
+		if t.consume("==") {
+			node = newBinary(NdEQ, node, t.relational())
+		} else if t.consume("!=") {
+			node = newBinary(NdNE, node, t.relational())
+		} else {
+			return node
+		}
+	}
+}
+
+func (t *Token) relational() *Node {
+	node := t.add()
+	for {
+		if t.consume("<") {
+			node = newBinary(NdLT, node, t.add())
+		} else if t.consume(">") {
+			node = newBinary(NdLT, t.add(), node)
+		} else if t.consume("<=") {
+			node = newBinary(NdLE, node, t.add())
+		} else if t.consume(">=") {
+			node = newBinary(NdLE, t.add(), node)
+		} else {
+			return node
+		}
+	}
+}
+
+func (t *Token) add() *Node {
 	node := t.mul()
 	for {
 		if t.consume("+") {
-			node = newNode(NdAdd, node, t.mul())
-		} else if t.consume("-") {
-			node = newNode(NdSub, node, t.mul())
+			node = newBinary(NdAdd, node, t.mul())
+		}
+		if t.consume("-") {
+			node = newBinary(NdSub, node, t.mul())
 		} else {
 			return node
 		}
@@ -121,12 +193,22 @@ func (t *Token) mul() *Node {
 	node := t.unary()
 	for {
 		if t.consume("*") {
-			node = newNode(NdMul, node, t.unary())
+			node = newBinary(NdMul, node, t.unary())
 		} else if t.consume("/") {
-			node = newNode(NdDiv, node, t.unary())
+			node = newBinary(NdDiv, node, t.unary())
 		} else {
 			return node
 		}
+	}
+}
+func (t *Token) unary() *Node {
+	if t.consume("+") {
+		return t.unary()
+	}
+	if t.consume("-") {
+		return newBinary(NdSub, newNodeNum(0), t.primary())
+	} else {
+		return t.primary()
 	}
 }
 
@@ -135,16 +217,7 @@ func (t *Token) primary() *Node {
 		node := t.expr()
 		t.expect(")")
 		return node
+	} else {
+		return newNodeNum(t.expectNumber())
 	}
-	return newNodeNum(t.expectNumber())
-}
-
-func (t *Token) unary() *Node {
-	if t.consume("+") {
-		return t.primary()
-	}
-	if t.consume("-") {
-		return newNode(NdSub, newNodeNum(0), t.primary())
-	}
-	return t.primary()
 }
