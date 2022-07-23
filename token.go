@@ -118,12 +118,12 @@ func (t *Token) expr() *Node {
 }
 
 func (t *Token) mul() *Node {
-	node := t.primary()
+	node := t.unary()
 	for {
 		if t.consume("*") {
-			node = newNode(NdMul, node, t.primary())
+			node = newNode(NdMul, node, t.unary())
 		} else if t.consume("/") {
-			node = newNode(NdDiv, node, t.primary())
+			node = newNode(NdDiv, node, t.unary())
 		} else {
 			return node
 		}
@@ -137,4 +137,14 @@ func (t *Token) primary() *Node {
 		return node
 	}
 	return newNodeNum(t.expectNumber())
+}
+
+func (t *Token) unary() *Node {
+	if t.consume("+") {
+		return t.primary()
+	}
+	if t.consume("-") {
+		return newNode(NdSub, newNodeNum(0), t.primary())
+	}
+	return t.primary()
 }
