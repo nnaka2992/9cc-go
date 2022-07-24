@@ -15,3 +15,8 @@ func ErrorAt(loc int, format string, a ...interface{}) {
 	fmt.Fprintf(os.Stderr, "\n")
 	os.Exit(1)
 }
+
+func Error(format string, a ...interface{}) {
+	fmt.Fprintf(os.Stderr, format, a...)
+	os.Exit(1)
+}

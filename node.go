@@ -7,15 +7,17 @@ import (
 type NodeKind int
 
 const (
-	NdAdd NodeKind = iota // +
-	NdSub                 // -
-	NdMul                 // *
-	NdDiv                 // /
-	NdNum                 // Integer
-	NdEQ                  // ==
-	NdNE                  // !=
-	NdLT                  // <
-	NdLE                  // <=
+	NdAdd    NodeKind = iota // +
+	NdSub                    // -
+	NdMul                    // *
+	NdDiv                    // /
+	NdNum                    // Integer
+	NdEQ                     // ==
+	NdNE                     // !=
+	NdLT                     // <
+	NdLE                     // <=
+	NdAssign                 // =
+	NdLVar                   // Local variable
 )
 
 func (e NodeKind) String() string {
@@ -38,32 +40,28 @@ func (e NodeKind) String() string {
 		return "NdLT"
 	case 8:
 		return "NdLE"
+	case 9:
+		return "NdAssign"
+	case 10:
+		return "NdLvar"
 	default:
 		return "Not a valid type"
 	}
 }
 
-// BNF
-// expr       = equality
-// equality   = relational ("==" relational | "!=" relational)*
-// relational = add ("<" add | "<=" add | ">" add | ">=" add)*
-// add        = mul ("+" mul | "-" mul)*
-// mul        = unary ("*" unary | "/" unary)*
-// unary      = ("+" | "-")? primary
-// primary    = num | "(" expr ")"
-
 // Node replisent AST of compiler
 type Node struct {
-	kind NodeKind // Node type
-	lhs  *Node    // left side leef
-	rhs  *Node    // right side leef
-	val  int      // Use only if kind is NdNum
+	kind   NodeKind // Node type
+	lhs    *Node    // left side leef
+	rhs    *Node    // right side leef
+	val    int      // Use only if kind is NdNum
+	offset int      // Use only if kind is NdLvar
 }
 
 func (n *Node) String() string {
 	return fmt.Sprintf(
-		"kind=%s\tlhs=%p\trhs=%p\tval=%d\n",
-		n.kind, n.lhs, n.rhs, n.val,
+		"kind=%s\taddress=%p\tlhs=%p\trhs=%p\tval=%d\toffset=%d",
+		n.kind, n, n.lhs, n.rhs, n.val, n.offset,
 	)
 }
 
@@ -86,11 +84,33 @@ func newNodeNum(val int) *Node {
 	return node
 }
 
+func newNodeIdent(offset int) *Node {
+	node := newNode(NdLVar)
+	node.offset = offset
+	return node
+}
+
 func (n *Node) gen() {
-	if n.kind == NdNum {
+	switch n.kind {
+	case NdNum:
 		fmt.Printf("  push %d\n", n.val)
 		return
+	case NdAssign:
+		n.lhs.genLval()
+		n.rhs.gen()
+		fmt.Printf("  pop rdi\n")
+		fmt.Printf("  pop rax\n")
+		fmt.Printf("  mov [rax], rdi\n")
+		fmt.Printf("  push rdi\n")
+		return
+	case NdLVar:
+		n.genLval()
+		fmt.Printf("  pop rax\n")
+		fmt.Printf("  mov rax, [rax]\n")
+		fmt.Printf("  push rax\n")
+		return
 	}
+
 	n.lhs.gen()
 	n.rhs.gen()
 
@@ -114,20 +134,35 @@ func (n *Node) gen() {
 		fmt.Printf("  cmp rax, rdi\n")
 		fmt.Printf("  sete al\n")
 		fmt.Printf("  movzb rax, al\n")
+		break
 	case NdNE:
 		fmt.Printf("  cmp rax, rdi\n")
 		fmt.Printf("  setne al\n")
 		fmt.Printf("  movzb rax, al\n")
+		break
 	case NdLT:
 		fmt.Printf("  cmp rax, rdi\n")
 		fmt.Printf("  setl al\n")
 		fmt.Printf("  movzb rax, al\n")
+		break
 	case NdLE:
 		fmt.Printf("  cmp rax, rdi\n")
 		fmt.Printf("  setle al\n")
 		fmt.Printf("  movzb rax, al\n")
+		break
+	default:
+		Error("Not a valid node.")
 	}
 
+	fmt.Printf("  push rax\n")
+}
+
+func (n *Node) genLval() {
+	if n.kind != NdLVar {
+		Error("Left value of assignment is not a valiable.")
+	}
+	fmt.Printf("  mov rax, rbp\n")
+	fmt.Printf("  sub rax, %d\n", n.offset)
 	fmt.Printf("  push rax\n")
 }
 
@@ -140,7 +175,7 @@ func (n *Node) Print() {
 		}
 		Print(n.lhs)
 		Print(n.rhs)
-		fmt.Printf(n.String())
+		fmt.Println(n.String())
 	}
 	Print(n)
 }
