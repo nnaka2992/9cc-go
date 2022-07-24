@@ -1,6 +1,10 @@
-CFLAG=-std=c11 -g -static
+SRCS=$(wildcard *.go)
+OBJ=$(9cc)
+
 9cc:
 	go build -o 9cc *.go
+$(SRCS): go.mod
+$(OBJ): $(SRCS)
 
 .PHONY: deps test clean cc run
 deps:
