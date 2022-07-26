@@ -38,4 +38,6 @@ assert 0 '1==1+1;'
 # case with variable
 assert 1 'a=b=1;'
 assert 0 'a=2+2==1*2;'
+assert 0 'abc=2+2==1*2;'
+
 echo OK

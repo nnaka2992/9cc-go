@@ -36,3 +36,19 @@ func RuneToInt(rs []rune) (v int, offset int) {
 func IsDigit(r rune) bool {
 	return '0' <= r && r <= '9'
 }
+
+func IsAlpha(r rune) bool {
+	return 'a' <= r && r <= 'z' || 'Z' <= r && r <= 'Z'
+}
+
+func RuneCompare(rs1, rs2 []rune) bool {
+	if len(rs1) != len(rs2) {
+		return false
+	}
+	for i, _ := range rs1 {
+		if rs1[i] != rs2[i] {
+			return false
+		}
+	}
+	return true
+}

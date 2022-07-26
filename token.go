@@ -117,9 +117,12 @@ func tokenize(s string) *Token {
 			pos++
 			rs = rs[1:]
 			continue
-		} else if 'a' <= rs[0] && rs[0] <= 'z' {
-			cur = cur.newToken(TKIdent, []rune{rs[0]}, pos)
-			rs = rs[1:]
+		} else if IsAlpha(rs[0]) {
+			i := 1
+			for ; IsAlpha(rs[i]); i++ {
+			}
+			cur = cur.newToken(TKIdent, []rune(rs[0:i]), pos)
+			rs = rs[i:]
 			pos++
 			continue
 		} else if 2 <= len(rs) && ("==" == string(rs[:2]) || "!=" == string(rs[:2])) {
@@ -149,6 +152,15 @@ func tokenize(s string) *Token {
 	}
 	cur.newToken(TKEof, nil, -1)
 	return head.next
+}
+
+func (t *Token) findLVar() (LVar, bool) {
+	for lvar := locals; lvar != nil; lvar = lvar.next {
+		if lvar.len == t.offset && RuneCompare(t.rune, lvar.name) {
+			return *lvar, true
+		}
+	}
+	return LVar{}, false
 }
 
 func (t Token) Print() {
@@ -267,7 +279,7 @@ func (t *Token) unary() *Node {
 	}
 }
 
-// primary = num | "(" expr ")"/
+// primary = num | ident | "(" expr ")"/
 func (t *Token) primary() *Node {
 	if t.consume("(") {
 		node := t.expr()
@@ -276,9 +288,22 @@ func (t *Token) primary() *Node {
 	}
 
 	if t.consumeIdent() {
-		node := newNodeIdent(int(t.rune[0]-'a'+1) * 8)
+		node := newNode(NdLVar)
+		// newNodeIdent(int(t.rune[0]-'a'+1) * 8)
+		lvar, ok := t.findLVar()
+		if !ok {
+			node.offset = lvar.offset
+		} else {
+			lvar := &LVar{
+				next:   locals,
+				name:   t.rune,
+				len:    t.offset,
+				offset: locals.offset + 8,
+			}
+			node.offset = lvar.offset
+			locals = lvar
+		}
 		t.nextToken()
-
 		return node
 	}
 	return newNodeNum(t.expectNumber())

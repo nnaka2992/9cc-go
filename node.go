@@ -84,12 +84,6 @@ func newNodeNum(val int) *Node {
 	return node
 }
 
-func newNodeIdent(offset int) *Node {
-	node := newNode(NdLVar)
-	node.offset = offset
-	return node
-}
-
 func (n *Node) gen() {
 	switch n.kind {
 	case NdNum:
