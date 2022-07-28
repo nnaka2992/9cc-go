@@ -41,7 +41,7 @@ func main() {
 	// Epilogue
 	// THe result of last statement must be left on the
 	// top of stack, so retun the value as return code.
-	fmt.Printf("  mov rsp, rbp\n")
-	fmt.Printf("  pop rbp\n")
-	fmt.Printf("  ret\n")
+	// fmt.Printf("  mov rsp, rbp\n")
+	// fmt.Printf("  pop rbp\n")
+	// fmt.Printf("  ret\n")
 }

@@ -15,6 +15,7 @@ const (
 	TKIdent                     // Identifier
 	TKNum                       // Integer
 	TKEof                       //End of file
+	TKReturn                    // Return
 )
 
 func (e TokenKind) String() string {
@@ -27,6 +28,8 @@ func (e TokenKind) String() string {
 		return "TKNum"
 	case 3:
 		return "TKEof"
+	case 4:
+		return "TKReturn"
 	default:
 		return "Not a valid type"
 	}
@@ -58,7 +61,7 @@ func (t *Token) getNextToken() *Token {
 }
 
 func (t *Token) consume(op string) bool {
-	if t.kind != TKReserved || t.offset != len([]rune(op)) || string(t.rune) != op {
+	if t.kind != TKReserved && t.kind != TKReturn || t.offset != len([]rune(op)) || string(t.rune) != op {
 		return false
 	}
 	t.nextToken()
@@ -116,6 +119,11 @@ func tokenize(s string) *Token {
 		if unicode.IsSpace(rs[0]) {
 			pos++
 			rs = rs[1:]
+			continue
+		} else if 6 <= len(rs) && RuneCompare(rs[:6], []rune("return")) {
+			cur = cur.newToken(TKReturn, rs[:6], pos)
+			rs = rs[6:]
+			pos += 6
 			continue
 		} else if IsAlpha(rs[0]) {
 			i := 1
@@ -184,8 +192,15 @@ func (t Token) program() []*Node {
 }
 
 // stmt = expr ";"
+//      | "return" expr ";"
 func (t *Token) stmt() *Node {
-	node := t.expr()
+	var node *Node
+	if t.consume("return") {
+		node = newNode(NdReturn)
+		node.lhs = t.expr()
+	} else {
+		node = t.expr()
+	}
 	t.expect(";")
 	return node
 }

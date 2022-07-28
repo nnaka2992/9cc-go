@@ -18,6 +18,7 @@ const (
 	NdLE                     // <=
 	NdAssign                 // =
 	NdLVar                   // Local variable
+	NdReturn                 // return
 )
 
 func (e NodeKind) String() string {
@@ -44,6 +45,8 @@ func (e NodeKind) String() string {
 		return "NdAssign"
 	case 10:
 		return "NdLvar"
+	case 11:
+		return "NdReturn"
 	default:
 		return "Not a valid type"
 	}
@@ -102,6 +105,13 @@ func (n *Node) gen() {
 		fmt.Printf("  pop rax\n")
 		fmt.Printf("  mov rax, [rax]\n")
 		fmt.Printf("  push rax\n")
+		return
+	case NdReturn:
+		n.lhs.gen()
+		fmt.Printf("  pop rax\n")
+		fmt.Printf("  mov rsp, rbp\n")
+		fmt.Printf("  pop rbp\n")
+		fmt.Printf("  ret\n")
 		return
 	}
 
